@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/io/audio"
+	"github.com/Meonardo/mediadevices/pkg/io/video"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 var (

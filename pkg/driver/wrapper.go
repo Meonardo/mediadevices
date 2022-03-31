@@ -1,10 +1,10 @@
 package driver
 
 import (
+	"github.com/Meonardo/mediadevices/pkg/io/audio"
+	"github.com/Meonardo/mediadevices/pkg/io/video"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 	"github.com/google/uuid"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
 )
 
 func wrapAdapter(a Adapter, info Info) Driver {

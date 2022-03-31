@@ -3,9 +3,9 @@ package opus
 import (
 	"testing"
 
-	"github.com/pion/mediadevices/pkg/codec/internal/codectest"
-	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/Meonardo/mediadevices/pkg/codec/internal/codectest"
+	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/wave"
 )
 
 func TestEncoder(t *testing.T) {

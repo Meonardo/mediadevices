@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/driver"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")
@@ -212,10 +212,13 @@ func EnumerateDevices() []MediaDeviceInfo {
 		}
 		driverInfo := d.Info()
 		info = append(info, MediaDeviceInfo{
-			DeviceID:   d.ID(),
-			Kind:       kind,
-			Label:      driverInfo.Label,
-			DeviceType: driverInfo.DeviceType,
+			DeviceID:     d.ID(),
+			Kind:         kind,
+			Label:        driverInfo.Label,
+			Name:         driverInfo.Name,
+			Manufacturer: driverInfo.Manufacturer,
+			ModelID:      driverInfo.ModelID,
+			DeviceType:   driverInfo.DeviceType,
 		})
 	}
 	return info

@@ -3,7 +3,7 @@ package vpx
 import (
 	"time"
 
-	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/Meonardo/mediadevices/pkg/codec"
 )
 
 // Params stores libvpx specific encoding parameters.

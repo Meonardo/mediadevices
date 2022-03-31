@@ -5,10 +5,10 @@ import (
 	"image"
 	"time"
 
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/driver"
+	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/Meonardo/mediadevices/pkg/io/video"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 type screen struct {

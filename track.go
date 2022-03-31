@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"log"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/Meonardo/mediadevices/pkg/codec"
+	"github.com/Meonardo/mediadevices/pkg/driver"
+	"github.com/Meonardo/mediadevices/pkg/io/audio"
+	"github.com/Meonardo/mediadevices/pkg/io/video"
+	"github.com/Meonardo/mediadevices/pkg/wave"
 	"github.com/google/uuid"
-	"github.com/pion/mediadevices/pkg/codec"
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/wave"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 )
@@ -77,13 +79,14 @@ type Track interface {
 
 type baseTrack struct {
 	Source
-	err                   error
-	onErrorHandler        func(error)
-	mu                    sync.Mutex
-	endOnce               sync.Once
-	kind                  MediaDeviceType
-	selector              *CodecSelector
-	activePeerConnections map[string]chan<- chan<- struct{}
+	err                        error
+	onErrorHandler             func(error)
+	mu                         sync.Mutex
+	endOnce                    sync.Once
+	kind                       MediaDeviceType
+	selector                   *CodecSelector
+	activePeerConnections      map[string]chan<- chan<- struct{}
+	encodedReaderErrorOccurred bool
 }
 
 func newBaseTrack(source Source, kind MediaDeviceType, selector *CodecSelector) *baseTrack {
@@ -201,13 +204,18 @@ func (track *baseTrack) bind(ctx webrtc.TrackLocalContext, specializedTrack Trac
 			pkts, _, err := encodedReader.Read()
 			if err != nil {
 				// explicitly ignore this error since the higher level should've reported this
-				return
+				track.onError(err)
+				track.encodedReaderErrorOccurred = true
+				log.Println("Track end with", err)
+				time.Sleep(10 * time.Millisecond)
+				continue
 			}
 
 			for _, pkt := range pkts {
 				_, err = writer.WriteRTP(&pkt.Header, pkt.Payload)
 				if err != nil {
 					track.onError(err)
+					track.encodedReaderErrorOccurred = true
 					return
 				}
 			}
@@ -223,6 +231,11 @@ func (track *baseTrack) unbind(ctx webrtc.TrackLocalContext) error {
 		return err
 	}
 
+	if track.encodedReaderErrorOccurred {
+		return nil
+	}
+
+	log.Println("Track Unbind", track.encodedReaderErrorOccurred)
 	doneCh := make(chan struct{})
 	ch <- doneCh
 	<-doneCh

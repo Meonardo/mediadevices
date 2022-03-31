@@ -5,15 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"strings"
 	"time"
 	"unsafe"
 
+	"github.com/Meonardo/mediadevices/internal/logging"
+	"github.com/Meonardo/mediadevices/pkg/driver"
+	"github.com/Meonardo/mediadevices/pkg/io/audio"
+	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/wave"
 	"github.com/gen2brain/malgo"
-	"github.com/pion/mediadevices/internal/logging"
-	"github.com/pion/mediadevices/pkg/driver"
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/prop"
-	"github.com/pion/mediadevices/pkg/wave"
 )
 
 const (
@@ -33,6 +35,7 @@ var (
 type microphone struct {
 	malgo.DeviceInfo
 	chunkChan chan []byte
+	device    *malgo.Device
 }
 
 func init() {
@@ -56,10 +59,16 @@ func init() {
 			if info.IsDefault > 0 {
 				priority = driver.PriorityHigh
 			}
+			name := device.Name()
+			name = strings.Trim(name, "\x00")
+
 			driver.GetManager().Register(newMicrophone(info), driver.Info{
-				Label:      device.ID.String(),
-				DeviceType: driver.Microphone,
-				Priority:   priority,
+				Label:        device.ID.String(),
+				Name:         name,
+				Manufacturer: "",
+				ModelID:      "",
+				DeviceType:   driver.Microphone,
+				Priority:     priority,
 			})
 		}
 	}
@@ -88,6 +97,12 @@ func (m *microphone) Open() error {
 
 func (m *microphone) Close() error {
 	if m.chunkChan != nil {
+		log.Println("!!!Close Microphone")
+		if m.device != nil {
+			m.device.Uninit()
+			m.device = nil
+		}
+		log.Println("!!!Microphone closed")
 		close(m.chunkChan)
 		m.chunkChan = nil
 	}
@@ -125,6 +140,9 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	callbacks.Data = onRecvChunk
 
 	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
+	m.device = device
+	log.Println("!!!Microphone device Init")
+
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +155,13 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
+			if m.device == nil || m.device.IsStarted() {
+				return nil, func() {}, io.EOF
+			}
 			device.Stop()
 			device.Uninit()
+			m.device = nil
+			log.Println("!!!Microphone Device EOF")
 			return nil, func() {}, io.EOF
 		}
 

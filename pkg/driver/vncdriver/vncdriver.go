@@ -5,16 +5,17 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 	"image"
 	"io"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/driver/vncdriver/vnc"
+
+	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/Meonardo/mediadevices/pkg/io/video"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 type vncDevice struct {
@@ -32,12 +33,12 @@ func NewVnc(vncAddr string) *vncDevice {
 	return &vncDevice{vncAddr: vncAddr}
 }
 func (d *vncDevice) PointerEvent(mask uint8, x, y uint16) {
-	if d.vClient!=nil{
+	if d.vClient != nil {
 		d.vClient.PointerEvent(vnc.ButtonMask(mask), x, y)
 	}
 }
 func (d *vncDevice) KeyEvent(keysym uint32, down bool) {
-	if d.vClient!=nil {
+	if d.vClient != nil {
 		d.vClient.KeyEvent(keysym, down)
 	}
 }

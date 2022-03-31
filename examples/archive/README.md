@@ -6,12 +6,12 @@ In this example, we'll be using x264 as our video codec. Therefore, we need to m
 
 Installation steps:
 
-* [x264](https://github.com/pion/mediadevices#x264)
+* [x264](https://github.com/Meonardo/mediadevices#x264)
 
 ### Download archive examplee
 
 ```
-git clone https://github.com/pion/mediadevices.git
+git clone https://github.com/Meonardo/mediadevices.git
 ```
 
 ### Run archive example

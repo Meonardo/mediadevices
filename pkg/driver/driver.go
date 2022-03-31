@@ -1,9 +1,9 @@
 package driver
 
 import (
-	"github.com/pion/mediadevices/pkg/io/audio"
-	"github.com/pion/mediadevices/pkg/io/video"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/io/audio"
+	"github.com/Meonardo/mediadevices/pkg/io/video"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 type VideoRecorder interface {
@@ -27,9 +27,12 @@ const (
 )
 
 type Info struct {
-	Label      string
-	DeviceType DeviceType
-	Priority   Priority
+	Label        string
+	DeviceType   DeviceType
+	Priority     Priority
+	Name         string
+	Manufacturer string
+	ModelID      string
 }
 
 type Adapter interface {

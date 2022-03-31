@@ -3,7 +3,7 @@
 ### Download facedetection example
 
 ```
-git clone https://github.com/pion/mediadevices.git
+git clone https://github.com/Meonardo/mediadevices.git
 ```
 
 ### Compile and Run facedetection

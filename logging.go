@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"github.com/pion/mediadevices/internal/logging"
+	"github.com/Meonardo/mediadevices/internal/logging"
 )
 
 var logger = logging.NewLogger("mediadevices")

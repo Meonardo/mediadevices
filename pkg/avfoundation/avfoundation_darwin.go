@@ -16,8 +16,8 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 type MediaType C.AVBindMediaType

@@ -1,3 +1,4 @@
+//go:build cpuusage
 // +build cpuusage
 
 // This is not an actual benchmark test.
@@ -10,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/mediadevices/pkg/frame"
-	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/Meonardo/mediadevices/pkg/prop"
 )
 
 func BenchmarkRead(b *testing.B) {

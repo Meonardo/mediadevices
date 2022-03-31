@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Meonardo/mediadevices/pkg/codec/x264"
-	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/codec/x264"
+	"github.com/pion/mediadevices/pkg/frame"
 )
 
 type mockVideoSource struct {

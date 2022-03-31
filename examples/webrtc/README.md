@@ -6,13 +6,13 @@ In this example, we'll be using x264 and opus as our video and audio codecs. The
 
 Installation steps:
 
-* [x264](https://github.com/Meonardo/mediadevices#x264)
-* [opus](https://github.com/Meonardo/mediadevices#opus)
+* [x264](https://github.com/pion/mediadevices#x264)
+* [opus](https://github.com/pion/mediadevices#opus)
 
 ### Download webrtc example
 
 ```
-git clone https://github.com/Meonardo/mediadevices.git
+git clone https://github.com/pion/mediadevices.git
 ```
 
 #### Compile webrtc example
@@ -23,7 +23,7 @@ cd mediadevices/examples/webrtc && go build
 
 ### Open example page
 
-[jsfiddle.net](https://jsfiddle.net/gh/get/library/pure/Meonardo/mediadevices/tree/master/examples/internal/jsfiddle/audio-and-video) you should see two text-areas and a 'Start Session' button
+[jsfiddle.net](https://jsfiddle.net/gh/get/library/pure/pion/mediadevices/tree/master/examples/internal/jsfiddle/audio-and-video) you should see two text-areas and a 'Start Session' button
 
 ### Run the webrtc example with your browsers SessionDescription as stdin
 

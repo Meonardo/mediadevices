@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/frame"
 )
 
 // FrameFormatConstraint is an interface to represent frame format constraint.

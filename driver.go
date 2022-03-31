@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"github.com/Meonardo/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver"
 )
 
 // RegisterDriverAdapter allows user space level of driver registration

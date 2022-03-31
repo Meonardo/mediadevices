@@ -8,9 +8,9 @@ package camera
 import (
 	"testing"
 
-	"github.com/Meonardo/mediadevices/pkg/avfoundation"
-	"github.com/Meonardo/mediadevices/pkg/frame"
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/avfoundation"
+	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 func TestCameraFrameFormatSupport(t *testing.T) {

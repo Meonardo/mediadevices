@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 // DetectChanges will detect frame and video property changes. For video property detection,

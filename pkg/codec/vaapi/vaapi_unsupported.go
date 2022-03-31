@@ -9,9 +9,9 @@ import "C"
 import (
 	"errors"
 
-	"github.com/Meonardo/mediadevices/pkg/codec"
-	"github.com/Meonardo/mediadevices/pkg/io/video"
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 var errNotSupported = errors.New("vaapi is not supported on this environment")

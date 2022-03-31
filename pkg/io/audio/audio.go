@@ -1,7 +1,7 @@
 package audio
 
 import (
-	"github.com/Meonardo/mediadevices/pkg/wave"
+	"github.com/pion/mediadevices/pkg/wave"
 )
 
 type Reader interface {

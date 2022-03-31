@@ -3,7 +3,7 @@ package mediadevices
 import (
 	"fmt"
 
-	"github.com/Meonardo/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/driver"
 )
 
 // MediaDeviceType enumerates type of media device.

@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Meonardo/mediadevices/pkg/driver/vncdriver/vnc"
+	"github.com/pion/mediadevices/pkg/driver/vncdriver/vnc"
 
-	"github.com/Meonardo/mediadevices/pkg/frame"
-	"github.com/Meonardo/mediadevices/pkg/io/video"
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/io/video"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 type vncDevice struct {

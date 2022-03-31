@@ -1,7 +1,7 @@
 package mediadevices
 
 import (
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 type MediaStreamConstraints struct {

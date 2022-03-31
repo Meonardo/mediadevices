@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/Meonardo/mediadevices/pkg/driver"
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/driver"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 var errNotFound = fmt.Errorf("failed to find the best driver that fits the constraints")

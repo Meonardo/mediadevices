@@ -1,4 +1,4 @@
-module github.com/Meonardo/mediadevices
+module github.com/pion/mediadevices
 
 go 1.13
 

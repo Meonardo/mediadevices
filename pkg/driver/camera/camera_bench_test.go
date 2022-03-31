@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Meonardo/mediadevices/pkg/frame"
-	"github.com/Meonardo/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/prop"
 )
 
 func BenchmarkRead(b *testing.B) {

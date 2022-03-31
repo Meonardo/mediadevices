@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Meonardo/mediadevices/pkg/codec"
-	"github.com/Meonardo/mediadevices/pkg/io/audio"
-	"github.com/Meonardo/mediadevices/pkg/prop"
-	"github.com/Meonardo/mediadevices/pkg/wave"
-	"github.com/Meonardo/mediadevices/pkg/wave/mixer"
+	"github.com/pion/mediadevices/pkg/codec"
+	"github.com/pion/mediadevices/pkg/io/audio"
+	"github.com/pion/mediadevices/pkg/prop"
+	"github.com/pion/mediadevices/pkg/wave"
+	"github.com/pion/mediadevices/pkg/wave/mixer"
 )
 
 /*

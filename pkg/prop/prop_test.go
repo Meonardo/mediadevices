@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Meonardo/mediadevices/pkg/frame"
+	"github.com/pion/mediadevices/pkg/frame"
 )
 
 func TestCompareMatch(t *testing.T) {

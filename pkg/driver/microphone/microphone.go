@@ -170,6 +170,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
 			m.deviceCloseFunc()
+			logger.Debug("Microphone io.EOF!")
 			return nil, func() {}, io.EOF
 		}
 

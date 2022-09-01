@@ -212,10 +212,13 @@ func EnumerateDevices() []MediaDeviceInfo {
 		}
 		driverInfo := d.Info()
 		info = append(info, MediaDeviceInfo{
-			DeviceID:   d.ID(),
-			Kind:       kind,
-			Label:      driverInfo.Label,
-			DeviceType: driverInfo.DeviceType,
+			DeviceID:     d.ID(),
+			Kind:         kind,
+			Label:        driverInfo.Label,
+			DeviceType:   driverInfo.DeviceType,
+			Name:         driverInfo.Name,
+			Manufacturer: driverInfo.Manufacturer,
+			ModelID:      driverInfo.ModelID,
 		})
 	}
 	return info

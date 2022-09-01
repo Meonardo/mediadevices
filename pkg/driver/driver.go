@@ -27,9 +27,12 @@ const (
 )
 
 type Info struct {
-	Label      string
-	DeviceType DeviceType
-	Priority   Priority
+	Label        string
+	DeviceType   DeviceType
+	Priority     Priority
+	Name         string
+	Manufacturer string
+	ModelID      string
 }
 
 type Adapter interface {

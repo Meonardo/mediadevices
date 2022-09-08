@@ -36,4 +36,4 @@ require (
 	golang.org/x/sys v0.0.0-20220907062415-87db552b00fd // indirect
 )
 
-//replace github.com/gen2brain/malgo => github.com/Meonardo/malgo v0.0.0-20220908100131-de21152b85c7
+replace github.com/gen2brain/malgo => github.com/Meonardo/malgo v0.0.1

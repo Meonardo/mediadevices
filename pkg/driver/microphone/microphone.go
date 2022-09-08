@@ -37,11 +37,56 @@ type microphone struct {
 	malgo.DeviceInfo
 	chunkChan       chan []byte
 	deviceCloseFunc func()
+
+	loopbackDevice *malgo.Device
+	loopbackFloats []float32
+}
+
+func initLoopbackDeviceInfo() *malgo.DeviceInfo {
+	var err error
+	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
+		logger.Debugf("%v\n", message)
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	devices, err := ctx.Devices(malgo.Playback)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, device := range devices {
+		if device.IsDefault > 0 {
+			info, err := ctx.DeviceInfo(malgo.Playback, device.ID, malgo.Shared)
+			if err == nil {
+				return &info
+			}
+		}
+
+	}
+	return nil
+}
+
+func initLoopbackDevice(callbacks *malgo.DeviceCallbacks) (*malgo.Device, error) {
+	//info := initLoopbackDeviceInfo()
+
+	deviceConfig := malgo.DefaultDeviceConfig(malgo.Loopback)
+	deviceConfig.Capture.Format = malgo.FormatF32
+	deviceConfig.Capture.Channels = 2
+	deviceConfig.SampleRate = 48000
+
+	device, err := malgo.InitDevice(ctx.Context, deviceConfig, *callbacks)
+	return device, err
 }
 
 func init() {
+	backends := []malgo.Backend{
+		malgo.BackendWasapi,
+	}
+
 	var err error
-	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
+	ctx, err = malgo.InitContext(backends, malgo.ContextConfig{}, func(message string) {
 		logger.Debugf("%v\n", message)
 	})
 	if err != nil {
@@ -104,6 +149,60 @@ func (m *microphone) Close() error {
 	return nil
 }
 
+func float32SliceToByteSlice(src []float32) []byte {
+	if len(src) == 0 {
+		return nil
+	}
+	l := len(src) * 4
+	ptr := unsafe.Pointer(&src[0])
+	slice := unsafe.Slice((*byte)(ptr), l)
+	return slice
+}
+
+// Reference: https://github.com/golang/go/wiki/cgo#turning-c-arrays-into-go-slices
+func byteSliceToFloat32Slice(src []byte) []float32 {
+	if len(src) == 0 {
+		return nil
+	}
+
+	l := len(src) / 4
+	ptr := unsafe.Pointer(&src[0])
+
+	slice := unsafe.Slice((*float32)(ptr), l)
+	return slice
+	// return (*[1 << 26]float32)((*[1 << 26]float32)(ptr))[:l:l]
+}
+
+func (m *microphone) StopMixing() {
+
+}
+
+func (m *microphone) StartMixing() {
+	if m.loopbackDevice == nil {
+		var callbacks malgo.DeviceCallbacks
+
+		var channels uint32 = 2
+		// sizeInBytes := uint32(malgo.SampleSizeInBytes(malgo.FormatF32))
+		onRecvChunk := func(_, pInput unsafe.Pointer, frameCount uint32) {
+			sampleCount := frameCount * channels
+			floats := unsafe.Slice((*float32)(pInput), sampleCount)
+			m.loopbackFloats = floats
+		}
+		callbacks.RawData = onRecvChunk
+
+		// init loopback device
+		loopbackDevice, err := initLoopbackDevice(&callbacks)
+		if err != nil {
+			return
+		}
+		m.loopbackDevice = loopbackDevice
+	}
+	err := m.loopbackDevice.Start()
+	if err != nil {
+		return
+	}
+}
+
 func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	var config malgo.DeviceConfig
 	var callbacks malgo.DeviceCallbacks
@@ -124,13 +223,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
 	//FIX: Turn on the microphone with the current device id
 	config.Capture.DeviceID = m.ID.Pointer()
-	if inputProp.SampleSize == 4 && inputProp.IsFloat {
-		config.Capture.Format = malgo.FormatF32
-	} else if inputProp.SampleSize == 2 && !inputProp.IsFloat {
-		config.Capture.Format = malgo.FormatS16
-	} else {
-		return nil, errUnsupportedFormat
-	}
+	config.Capture.Format = malgo.FormatF32
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	onRecvChunk := func(_, chunk []byte, framecount uint32) {
@@ -166,12 +259,26 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		})
 	}
 
+	// test mixing
+	m.StartMixing()
+
 	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
 		if !ok {
 			m.deviceCloseFunc()
 			logger.Debug("Microphone io.EOF!")
 			return nil, func() {}, io.EOF
+		}
+
+		// here goes with mixing
+		if m.loopbackFloats != nil {
+			floats := byteSliceToFloat32Slice(chunk)
+			length := len(floats)
+			for i := 0; i < length; i++ {
+				floats[i] += m.loopbackFloats[i]
+			}
+
+			chunk = float32SliceToByteSlice(floats)
 		}
 
 		decodedChunk, err := decoder.Decode(hostEndian, chunk, inputProp.ChannelCount)

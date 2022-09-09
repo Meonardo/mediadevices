@@ -197,6 +197,7 @@ func (m *microphone) ClosePlaybackDevice() {
 	if m.loopbackDevice != nil {
 		// destory playback device
 		m.loopbackDevice.Uninit()
+		m.loopbackDevice = nil
 	}
 }
 

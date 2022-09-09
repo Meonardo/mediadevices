@@ -35,14 +35,15 @@ var (
 
 type microphone struct {
 	malgo.DeviceInfo
-	chunkChan       chan []byte
+	chunkChan       chan unsafe.Pointer
 	deviceCloseFunc func()
 
 	loopbackDevice *malgo.Device
 	loopbackFloats []float32
+	isMixing       bool
 }
 
-func initLoopbackDeviceInfo() *malgo.DeviceInfo {
+func defaultPlaybackDeviceInfo() *malgo.DeviceInfo {
 	var err error
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
 		logger.Debugf("%v\n", message)
@@ -66,18 +67,6 @@ func initLoopbackDeviceInfo() *malgo.DeviceInfo {
 
 	}
 	return nil
-}
-
-func initLoopbackDevice(callbacks *malgo.DeviceCallbacks) (*malgo.Device, error) {
-	//info := initLoopbackDeviceInfo()
-
-	deviceConfig := malgo.DefaultDeviceConfig(malgo.Loopback)
-	deviceConfig.Capture.Format = malgo.FormatF32
-	deviceConfig.Capture.Channels = 2
-	deviceConfig.SampleRate = 48000
-
-	device, err := malgo.InitDevice(ctx.Context, deviceConfig, *callbacks)
-	return device, err
 }
 
 func init() {
@@ -138,51 +127,43 @@ func newMicrophone(info malgo.DeviceInfo) *microphone {
 }
 
 func (m *microphone) Open() error {
-	m.chunkChan = make(chan []byte, 1)
+	m.chunkChan = make(chan unsafe.Pointer, 1)
 	return nil
 }
 
 func (m *microphone) Close() error {
+	// close the playback device first
+	m.ClosePlaybackDevice()
 	if m.deviceCloseFunc != nil {
 		m.deviceCloseFunc()
 	}
 	return nil
 }
 
-func float32SliceToByteSlice(src []float32) []byte {
-	if len(src) == 0 {
-		return nil
-	}
-	l := len(src) * 4
-	ptr := unsafe.Pointer(&src[0])
-	slice := unsafe.Slice((*byte)(ptr), l)
-	return slice
-}
-
-// Reference: https://github.com/golang/go/wiki/cgo#turning-c-arrays-into-go-slices
-func byteSliceToFloat32Slice(src []byte) []float32 {
-	if len(src) == 0 {
-		return nil
+func (m *microphone) StopMixing() bool {
+	if !m.isMixing || m.loopbackDevice == nil {
+		return false
 	}
 
-	l := len(src) / 4
-	ptr := unsafe.Pointer(&src[0])
+	// stop the device
+	err := m.loopbackDevice.Stop()
+	if err != nil {
+		return false
+	}
 
-	slice := unsafe.Slice((*float32)(ptr), l)
-	return slice
-	// return (*[1 << 26]float32)((*[1 << 26]float32)(ptr))[:l:l]
+	m.isMixing = false
+	return true
 }
 
-func (m *microphone) StopMixing() {
-
-}
-
-func (m *microphone) StartMixing() {
+func (m *microphone) StartMixing() bool {
+	if m.isMixing {
+		return false
+	}
 	if m.loopbackDevice == nil {
+		// init loopback device
 		var callbacks malgo.DeviceCallbacks
-
 		var channels uint32 = 2
-		// sizeInBytes := uint32(malgo.SampleSizeInBytes(malgo.FormatF32))
+
 		onRecvChunk := func(_, pInput unsafe.Pointer, frameCount uint32) {
 			sampleCount := frameCount * channels
 			floats := unsafe.Slice((*float32)(pInput), sampleCount)
@@ -190,16 +171,32 @@ func (m *microphone) StartMixing() {
 		}
 		callbacks.RawData = onRecvChunk
 
-		// init loopback device
-		loopbackDevice, err := initLoopbackDevice(&callbacks)
+		deviceConfig := malgo.DefaultDeviceConfig(malgo.Loopback)
+		deviceConfig.Capture.Format = malgo.FormatF32
+		deviceConfig.Capture.Channels = 2
+		loopbackDevice, err := malgo.InitDevice(ctx.Context, deviceConfig, callbacks)
 		if err != nil {
-			return
+			return false
 		}
 		m.loopbackDevice = loopbackDevice
 	}
+
+	// start the device
 	err := m.loopbackDevice.Start()
 	if err != nil {
-		return
+		return false
+	}
+
+	m.isMixing = true
+	return true
+}
+
+func (m *microphone) ClosePlaybackDevice() {
+	// stop mixing if necessary
+	m.StopMixing()
+	if m.loopbackDevice != nil {
+		// destory playback device
+		m.loopbackDevice.Uninit()
 	}
 }
 
@@ -218,21 +215,22 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 
 	config.DeviceType = malgo.Capture
 	config.PerformanceProfile = malgo.LowLatency
-	config.Capture.Channels = uint32(inputProp.ChannelCount)
-	config.SampleRate = uint32(inputProp.SampleRate)
+	config.Capture.Channels = 2
 	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
 	//FIX: Turn on the microphone with the current device id
 	config.Capture.DeviceID = m.ID.Pointer()
 	config.Capture.Format = malgo.FormatF32
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
-	onRecvChunk := func(_, chunk []byte, framecount uint32) {
+	onRecvChunk := func(_, chunk unsafe.Pointer, framecount uint32) {
 		select {
 		case <-cancelCtx.Done():
 		case m.chunkChan <- chunk:
 		}
 	}
-	callbacks.Data = onRecvChunk
+	callbacks.RawData = onRecvChunk
+
+	sizeInBytes := uint32(malgo.SampleSizeInBytes(malgo.FormatF32))
 
 	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
 	if err != nil {
@@ -260,7 +258,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	}
 
 	// test mixing
-	m.StartMixing()
+	// m.StartMixing()
 
 	var reader audio.Reader = audio.ReaderFunc(func() (wave.Audio, func(), error) {
 		chunk, ok := <-m.chunkChan
@@ -270,18 +268,21 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 			return nil, func() {}, io.EOF
 		}
 
+		var inputSamples []byte
+		sampleCount := uint32(inputProp.SampleRate/100) * uint32(inputProp.ChannelCount)
+
 		// here goes with mixing
-		if m.loopbackFloats != nil {
-			floats := byteSliceToFloat32Slice(chunk)
+		if m.loopbackFloats != nil && m.isMixing && m.loopbackFloats[0] != 0 {
+			floats := unsafe.Slice((*float32)(chunk), sampleCount)
 			length := len(floats)
 			for i := 0; i < length; i++ {
 				floats[i] += m.loopbackFloats[i]
 			}
-
-			chunk = float32SliceToByteSlice(floats)
+			// inputSamples = unsafe.Slice((*byte)(chunk), sampleCount*sizeInBytes)
 		}
+		inputSamples = unsafe.Slice((*byte)(chunk), sampleCount*sizeInBytes)
 
-		decodedChunk, err := decoder.Decode(hostEndian, chunk, inputProp.ChannelCount)
+		decodedChunk, err := decoder.Decode(hostEndian, inputSamples, inputProp.ChannelCount)
 		// FIXME: the decoder should also fill this information
 		switch decodedChunk := decodedChunk.(type) {
 		case *wave.Float32Interleaved:

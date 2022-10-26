@@ -46,7 +46,7 @@ type microphone struct {
 func defaultPlaybackDeviceInfo() *malgo.DeviceInfo {
 	var err error
 	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
-		logger.Debugf("%v\n", message)
+		fmt.Printf("Playback device message: %s\n", message)
 	})
 	if err != nil {
 		panic(err)
@@ -76,7 +76,7 @@ func init() {
 
 	var err error
 	ctx, err = malgo.InitContext(backends, malgo.ContextConfig{}, func(message string) {
-		logger.Debugf("%v\n", message)
+		fmt.Printf("Playback device message: %s\n", message)
 	})
 	if err != nil {
 		panic(err)
@@ -144,14 +144,15 @@ func (m *microphone) StopMixing() bool {
 	if !m.isMixing || m.loopbackDevice == nil {
 		return false
 	}
+	m.isMixing = false
 
 	// stop the device
 	err := m.loopbackDevice.Stop()
 	if err != nil {
+		fmt.Println("StopMixing failed:", err)
 		return false
 	}
 
-	m.isMixing = false
 	return true
 }
 
@@ -171,13 +172,27 @@ func (m *microphone) StartMixing() bool {
 		}
 		callbacks.RawData = onRecvChunk
 
+		onDeviceStop := func() {
+			go func() {
+				if m.isMixing {
+					m.RestartMixing()
+				} else {
+					m.ClosePlaybackDevice()
+				}
+			}()
+		}
+		callbacks.Stop = onDeviceStop
+
 		deviceConfig := malgo.DefaultDeviceConfig(malgo.Loopback)
 		deviceConfig.Capture.Format = malgo.FormatF32
 		deviceConfig.Capture.Channels = 2
+		deviceConfig.Capture.DeviceID = nil
+		deviceConfig.Playback.DeviceID = nil
 		loopbackDevice, err := malgo.InitDevice(ctx.Context, deviceConfig, callbacks)
 		if err != nil {
 			return false
 		}
+		loopbackDevice.SetAllowPlaybackAutoStreamRouting(true)
 		m.loopbackDevice = loopbackDevice
 	}
 
@@ -191,12 +206,24 @@ func (m *microphone) StartMixing() bool {
 	return true
 }
 
+// restart mixing sounds
+func (m *microphone) RestartMixing() {
+	fmt.Println("Mix restarting...")
+
+	m.loopbackFloats = nil
+	m.ClosePlaybackDevice()
+	success := m.StartMixing()
+	if success {
+		fmt.Println("Mixing sounds restarted successfully.")
+	}
+}
+
 func (m *microphone) ClosePlaybackDevice() {
 	// stop mixing if necessary
 	m.StopMixing()
 	if m.loopbackDevice != nil {
 		// destory playback device
-		m.loopbackDevice.Uninit()
+		//m.loopbackDevice.Uninit()
 		m.loopbackDevice = nil
 	}
 }

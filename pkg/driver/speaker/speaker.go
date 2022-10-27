@@ -12,7 +12,6 @@ import (
 	"unsafe"
 
 	"github.com/gen2brain/malgo"
-	"github.com/pion/mediadevices/internal/logging"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/io/audio"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -26,7 +25,6 @@ const (
 	initialBufferSize = 1024
 )
 
-var logger = logging.NewLogger("mediadevices/driver/speaker")
 var ctx *malgo.AllocatedContext
 var hostEndian binary.ByteOrder
 var (
@@ -130,7 +128,7 @@ func (m *speaker) Restart() {
 }
 
 func (m *speaker) closePlaybackDevice() {
-	if m.loopbackDevice != nil {
+	if m.device != nil {
 		// destory playback device
 		m.device.Uninit()
 		m.device = nil
@@ -236,7 +234,7 @@ func (m *speaker) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 
 func (m *speaker) Properties() []prop.Media {
 	var supportedProps []prop.Media
-	logger.Debug("Querying properties")
+	log.Println("Querying properties")
 
 	var isBigEndian bool
 	// miniaudio only uses the host endian

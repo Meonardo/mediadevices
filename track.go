@@ -129,10 +129,15 @@ func (track *baseTrack) RID() string {
 // OnEnded sets an error handler. When a track has been created and started, if an
 // error occurs, handler will get called with the error given to the parameter.
 func (track *baseTrack) OnEnded(handler func(error)) {
-	track.mu.Lock()
+	var shouldUnlock = false
+	if track.mu.TryLock() {
+		shouldUnlock = true
+	}
 	track.onErrorHandler = handler
 	err := track.err
-	track.mu.Unlock()
+	if shouldUnlock {
+		track.mu.Unlock()
+	}
 
 	if err != nil && handler != nil {
 		// Already errored.
@@ -144,10 +149,15 @@ func (track *baseTrack) OnEnded(handler func(error)) {
 
 // onError is a callback when an error occurs
 func (track *baseTrack) onError(err error) {
-	track.mu.Lock()
+	var shouldUnlock = false
+	if track.mu.TryLock() {
+		shouldUnlock = true
+	}
 	track.err = err
 	handler := track.onErrorHandler
-	track.mu.Unlock()
+	if shouldUnlock {
+		track.mu.Unlock()
+	}
 
 	if handler != nil {
 		track.endOnce.Do(func() {

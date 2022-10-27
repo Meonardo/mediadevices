@@ -206,7 +206,11 @@ func EnumerateDevices() []MediaDeviceInfo {
 		case driver.FilterVideoRecorder()(d):
 			kind = VideoInput
 		case driver.FilterAudioRecorder()(d):
-			kind = AudioInput
+			if d.Info().DeviceType == "speaker" {
+				kind = AudioOutput
+			} else {
+				kind = AudioInput
+			}
 		default:
 			continue
 		}

@@ -9,6 +9,8 @@ const (
 	Camera DeviceType = "camera"
 	// Microphone represents microphone devices
 	Microphone = "microphone"
+	// Speaker represents speaker devices
+	Speaker = "speaker"
 	// Screen represents screen devices
 	Screen = "screen"
 )

@@ -39,10 +39,6 @@ type Adapter interface {
 	Open() error
 	Close() error
 
-	// audio mixing functions
-	StopMixing() bool
-	StartMixing() bool
-
 	Properties() []prop.Media
 }
 

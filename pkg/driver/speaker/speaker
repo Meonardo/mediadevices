@@ -1,11 +1,12 @@
-package microphone
+package speaker
 
 import (
-	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -25,29 +26,37 @@ const (
 	initialBufferSize = 1024
 )
 
-var logger = logging.NewLogger("mediadevices/driver/microphone")
+var logger = logging.NewLogger("mediadevices/driver/speaker")
 var ctx *malgo.AllocatedContext
 var hostEndian binary.ByteOrder
 var (
 	errUnsupportedFormat = errors.New("the provided audio format is not supported")
 )
 
-type microphone struct {
+type speaker struct {
 	malgo.DeviceInfo
 	chunkChan       chan []byte
 	deviceCloseFunc func()
+
+	device    *malgo.Device
+	inputProp prop.Media
 }
 
 func init() {
+	// NOTICE: this driver support windows only!
+	backends := []malgo.Backend{
+		malgo.BackendWasapi,
+	}
+
 	var err error
-	ctx, err = malgo.InitContext(nil, malgo.ContextConfig{}, func(message string) {
-		logger.Debugf("%v\n", message)
+	ctx, err = malgo.InitContext(backends, malgo.ContextConfig{}, func(message string) {
+		log.Printf("Playback device message: %s\n", message)
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	devices, err := ctx.Devices(malgo.Capture)
+	devices, err := ctx.Devices(malgo.Playback)
 	if err != nil {
 		panic(err)
 	}
@@ -59,10 +68,17 @@ func init() {
 			if info.IsDefault > 0 {
 				priority = driver.PriorityHigh
 			}
-			driver.GetManager().Register(newMicrophone(info), driver.Info{
-				Label:      device.ID.String(),
-				DeviceType: driver.Microphone,
-				Priority:   priority,
+
+			name := device.Name()
+			name = strings.Trim(name, "\x00")
+
+			driver.GetManager().Register(newSpeaker(info), driver.Info{
+				Label:        device.ID.String(),
+				DeviceType:   driver.Speaker,
+				Priority:     priority,
+				Name:         name,
+				Manufacturer: "",
+				ModelID:      "",
 			})
 		}
 	}
@@ -78,27 +94,94 @@ func init() {
 	}
 }
 
-func newMicrophone(info malgo.DeviceInfo) *microphone {
-	return &microphone{
+func newSpeaker(info malgo.DeviceInfo) *speaker {
+	return &speaker{
 		DeviceInfo: info,
 	}
 }
 
-func (m *microphone) Open() error {
+func (m *speaker) Open() error {
 	m.chunkChan = make(chan []byte, 1)
 	return nil
 }
 
-func (m *microphone) Close() error {
+func (m *speaker) Close() error {
 	if m.deviceCloseFunc != nil {
 		m.deviceCloseFunc()
 	}
 	return nil
 }
 
-func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
-	var config malgo.DeviceConfig
+// restart
+func (m *speaker) Restart() {
+	log.Println("Restarting...")
+
+	// close current device
+	m.closePlaybackDevice()
+
+	device, err := m.defaultPlaybackDevice(m.inputProp)
+	if err != nil {
+		log.Println("Init default playback device failed with error:", err)
+		return
+	}
+	m.device = device
+
+	log.Println("Restarted")
+}
+
+func (m *speaker) closePlaybackDevice() {
+	if m.loopbackDevice != nil {
+		// destory playback device
+		m.device.Uninit()
+		m.device = nil
+	}
+}
+
+func (m *speaker) defaultPlaybackDevice(inputProp prop.Media) (*malgo.Device, error) {
+	config := malgo.DefaultDeviceConfig(malgo.Loopback)
 	var callbacks malgo.DeviceCallbacks
+
+	config.PerformanceProfile = malgo.LowLatency
+	config.Capture.Channels = uint32(inputProp.ChannelCount)
+	config.SampleRate = uint32(inputProp.SampleRate)
+	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
+
+	if inputProp.SampleSize == 4 && inputProp.IsFloat {
+		config.Capture.Format = malgo.FormatF32
+	} else if inputProp.SampleSize == 2 && !inputProp.IsFloat {
+		config.Capture.Format = malgo.FormatS16
+	} else {
+		return nil, errUnsupportedFormat
+	}
+
+	onRecvChunk := func(_, chunk []byte, framecount uint32) {
+		m.chunkChan <- chunk
+	}
+	callbacks.Data = onRecvChunk
+	onDeviceStop := func() {
+		go func() {
+			m.Restart()
+		}()
+	}
+	callbacks.Stop = onDeviceStop
+
+	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
+	if err != nil {
+		return nil, err
+	}
+
+	err = device.Start()
+	if err != nil {
+		return nil, err
+	}
+	device.SetAllowPlaybackAutoStreamRouting(true)
+
+	return device, nil
+}
+
+func (m *speaker) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
+	log.Println("AudioRecord starting...")
+	m.inputProp = inputProp
 
 	decoder, err := wave.NewDecoder(&wave.RawFormat{
 		SampleSize:  inputProp.SampleSize,
@@ -109,47 +192,17 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		return nil, err
 	}
 
-	config.DeviceType = malgo.Capture
-	config.PerformanceProfile = malgo.LowLatency
-	config.Capture.Channels = uint32(inputProp.ChannelCount)
-	config.SampleRate = uint32(inputProp.SampleRate)
-	config.PeriodSizeInMilliseconds = uint32(inputProp.Latency.Milliseconds())
-	//FIX: Turn on the microphone with the current device id
-	config.Capture.DeviceID = m.ID.Pointer()
-	if inputProp.SampleSize == 4 && inputProp.IsFloat {
-		config.Capture.Format = malgo.FormatF32
-	} else if inputProp.SampleSize == 2 && !inputProp.IsFloat {
-		config.Capture.Format = malgo.FormatS16
-	} else {
-		return nil, errUnsupportedFormat
-	}
-
-	cancelCtx, cancel := context.WithCancel(context.Background())
-	onRecvChunk := func(_, chunk []byte, framecount uint32) {
-		select {
-		case <-cancelCtx.Done():
-		case m.chunkChan <- chunk:
-		}
-	}
-	callbacks.Data = onRecvChunk
-
-	device, err := malgo.InitDevice(ctx.Context, config, callbacks)
+	device, err := m.defaultPlaybackDevice(inputProp)
 	if err != nil {
-		cancel()
+		log.Println("Init default playback device failed with error:", err)
 		return nil, err
 	}
-
-	err = device.Start()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
+	m.device = device
 
 	var closeDeviceOnce sync.Once
 	m.deviceCloseFunc = func() {
 		closeDeviceOnce.Do(func() {
-			cancel() // Unblock onRecvChunk
-			device.Uninit()
+			m.closePlaybackDevice()
 
 			if m.chunkChan != nil {
 				close(m.chunkChan)
@@ -181,7 +234,7 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 	return reader, nil
 }
 
-func (m *microphone) Properties() []prop.Media {
+func (m *speaker) Properties() []prop.Media {
 	var supportedProps []prop.Media
 	logger.Debug("Querying properties")
 

@@ -38,6 +38,8 @@ type Info struct {
 type Adapter interface {
 	Open() error
 	Close() error
+	Mute() bool
+	Unmute() bool
 
 	Properties() []prop.Media
 }

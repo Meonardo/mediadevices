@@ -38,6 +38,8 @@ type speaker struct {
 
 	device    *malgo.Device
 	inputProp prop.Media
+
+	muted bool
 }
 
 func init() {
@@ -63,10 +65,6 @@ func init() {
 		info, err := ctx.DeviceInfo(malgo.Capture, device.ID, malgo.Shared)
 		if err == nil {
 			priority := driver.PriorityNormal
-			if info.IsDefault > 0 {
-				priority = driver.PriorityHigh
-			}
-
 			name := device.Name()
 			name = strings.Trim(name, "\x00")
 
@@ -108,6 +106,37 @@ func (m *speaker) Close() error {
 		m.deviceCloseFunc()
 	}
 	return nil
+}
+
+func (m *speaker) Mute() bool {
+	if m.device == nil {
+		return false
+	}
+
+	m.muted = true
+	err := m.device.Stop()
+	if err != nil {
+		log.Println("Mute device failed:", err)
+		m.muted = false
+		return false
+	}
+
+	return true
+}
+
+func (m *speaker) Unmute() bool {
+	if m.device == nil {
+		return false
+	}
+
+	m.muted = false
+	err := m.device.Start()
+	if err != nil {
+		log.Println("Unmute device failed:", err)
+		return false
+	}
+
+	return true
 }
 
 // restart
@@ -158,7 +187,9 @@ func (m *speaker) defaultPlaybackDevice(inputProp prop.Media) (*malgo.Device, er
 	callbacks.Data = onRecvChunk
 	onDeviceStop := func() {
 		go func() {
-			m.Restart()
+			if !m.muted {
+				m.Restart()
+			}
 		}()
 	}
 	callbacks.Stop = onDeviceStop
@@ -172,13 +203,16 @@ func (m *speaker) defaultPlaybackDevice(inputProp prop.Media) (*malgo.Device, er
 	if err != nil {
 		return nil, err
 	}
+
 	device.SetAllowPlaybackAutoStreamRouting(true)
+
+	r := device.ChangeVolume(1.0)
+	log.Println("ChangeVolume result:", r)
 
 	return device, nil
 }
 
 func (m *speaker) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
-	log.Println("AudioRecord starting...")
 	m.inputProp = inputProp
 
 	decoder, err := wave.NewDecoder(&wave.RawFormat{
@@ -234,7 +268,6 @@ func (m *speaker) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 
 func (m *speaker) Properties() []prop.Media {
 	var supportedProps []prop.Media
-	log.Println("Querying properties")
 
 	var isBigEndian bool
 	// miniaudio only uses the host endian

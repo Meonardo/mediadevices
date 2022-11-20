@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -36,6 +38,8 @@ type microphone struct {
 	malgo.DeviceInfo
 	chunkChan       chan []byte
 	deviceCloseFunc func()
+
+	device *malgo.Device
 }
 
 func init() {
@@ -59,10 +63,17 @@ func init() {
 			if info.IsDefault > 0 {
 				priority = driver.PriorityHigh
 			}
+
+			name := device.Name()
+			name = strings.Trim(name, "\x00")
+
 			driver.GetManager().Register(newMicrophone(info), driver.Info{
-				Label:      device.ID.String(),
-				DeviceType: driver.Microphone,
-				Priority:   priority,
+				Label:        device.ID.String(),
+				DeviceType:   driver.Microphone,
+				Priority:     priority,
+				Name:         name,
+				Manufacturer: "",
+				ModelID:      "",
 			})
 		}
 	}
@@ -94,6 +105,34 @@ func (m *microphone) Close() error {
 		m.deviceCloseFunc()
 	}
 	return nil
+}
+
+func (m *microphone) Mute() bool {
+	if m.device == nil {
+		return false
+	}
+
+	err := m.device.Stop()
+	if err != nil {
+		log.Println("Mute device failed:", err)
+		return false
+	}
+
+	return true
+}
+
+func (m *microphone) Unmute() bool {
+	if m.device == nil {
+		return false
+	}
+
+	err := m.device.Start()
+	if err != nil {
+		log.Println("Unmute device failed:", err)
+		return false
+	}
+
+	return true
 }
 
 func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
@@ -144,6 +183,8 @@ func (m *microphone) AudioRecord(inputProp prop.Media) (audio.Reader, error) {
 		cancel()
 		return nil, err
 	}
+
+	m.device = device
 
 	var closeDeviceOnce sync.Once
 	m.deviceCloseFunc = func() {
